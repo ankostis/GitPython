@@ -38,13 +38,13 @@ class GitCommandError(Exception):
         self.command = command
 
     def __str__(self):
-        ret = "'%s' returned with exit code %i" % \
-              (' '.join(str(i) for i in self.command), self.status)
+        ret = u"'%s' returned with exit code %i" % \
+              (u' '.join(i.decode(defenc) for i in self.command), self.status)
         if self.stderr:
-            ret += "\nstderr: '%s'" % self.stderr.decode(defenc)
+            ret += u"\nstderr: '%s'" % self.stderr.decode(defenc)
         if self.stdout:
-            ret += "\nstdout: '%s'" % self.stdout.decode(defenc)
-        return ret
+            ret += u"\nstdout: '%s'" % self.stdout.decode(defenc)
+        return ret.encode(defenc)
 
 
 class CheckoutError(Exception):
