@@ -144,6 +144,36 @@ def assure_directory_exists(path, is_file=False):
     return False
 
 
+def py_where(program, path=None):
+    # From: http://stackoverflow.com/a/377028/548792
+    winprog_exts = ('.bat', 'com', '.exe')
+
+    def is_exec(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK) and (
+            os.name != 'nt' or fpath.lower()[-4:] in winprog_exts)
+
+    progs = []
+    if not path:
+        path = os.environ["PATH"]
+    for folder in path.split(os.path.pathsep):
+        folder = folder.strip('"')
+        if folder:
+            exe_path = os.path.join(folder, program)
+            for f in [exe_path] + ['%s%s' % (exe_path, e) for e in winprog_exts]:
+                if is_exec(f):
+                    progs.append(f)
+    return progs
+
+
+def cygpath(path):
+    match = re.match("(\w):[/\\\]?(.*)", path)
+    if not match:
+        return path
+    drive, rest_of_path = match.groups()
+    path = '/cygdrive/%s/%s' % (drive.lower(), rest_of_path.replace('\\', '/'))
+    return path
+
+
 def get_user_id():
     """:return: string identifying the currently active system user as name@node"""
     return "%s@%s" % (getpass.getuser(), platform.node())

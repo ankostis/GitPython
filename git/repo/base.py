@@ -26,7 +26,8 @@ from git.objects import (
 )
 from git.util import (
     Actor,
-    finalize_process
+    finalize_process,
+    cygpath,
 )
 from git.index import IndexFile
 from git.config import GitConfigParser
@@ -77,6 +78,14 @@ __all__ = ('Repo',)
 
 def _expand_path(p):
     return os.path.abspath(os.path.expandvars(os.path.expanduser(p)))
+
+
+def rr_expand_path(p):
+    if not p.startswith('/cygdrive'):
+        p = os.path.abspath(os.path.expandvars(os.path.expanduser(p)))
+        if Git.is_cygwin():
+            p = cygpath(p)
+    return p
 
 
 class Repo(object):
@@ -885,9 +894,6 @@ class Repo(object):
         prev_path = None
         odbt = kwargs.pop('odbt', odb_default_type)
         if is_win():
-            if '~' in path:
-                raise OSError("Git cannot handle the ~ character in path %r correctly" % path)
-
             # on windows, git will think paths like c: are relative and prepend the
             # current working dir ( before it fails ). We temporarily adjust the working
             # dir to make this actually work

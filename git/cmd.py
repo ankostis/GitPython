@@ -42,6 +42,7 @@ from git.compat import (
     safe_decode,
     is_posix,
     is_win,
+    is_cygwin_git,
 )
 import io
 
@@ -288,6 +289,10 @@ class Git(LazyMixin):
     # for more information
     # Override this value using `Git.USE_SHELL = True`
     USE_SHELL = False
+
+    @classmethod
+    def is_cygwin(cls):
+        return is_cygwin_git(cls.GIT_PYTHON_GIT_EXECUTABLE)
 
     class AutoInterrupt(object):
 
@@ -745,7 +750,8 @@ class Git(LazyMixin):
             if with_extended_output:
                 raise GitCommandError(command, status, stderr_value, stdout_value)
             else:
-                raise GitCommandError(command, status, stderr_value)
+                ex = GitCommandError(command, status, stderr_value)
+                raise ex
 
         if isinstance(stdout_value, bytes) and stdout_as_string:  # could also be output_stream
             stdout_value = safe_decode(stdout_value)

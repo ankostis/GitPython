@@ -82,6 +82,10 @@ def with_metaclass(meta, *bases):
     # end handle py2
 
 
+def is_py2():
+    return sys.version_info[0] < 3
+
+
 def is_win():
     return os.name == 'nt'
 
@@ -93,3 +97,24 @@ def is_posix():
 def is_darwin():
     return os.name == 'darwin'
 
+
+_is_cygwin_cache = {}
+def is_cygwin_git(git_executable):
+    is_cygwin = _is_cygwin_cache.get(git_executable)
+    if is_cygwin is None:
+        is_cygwin = False
+        try:
+            git_dir = osp.dirname(git_executable)
+            if not git_dir:
+                res = py_where(git_executable)
+                git_dir = osp.dirname(res[0]) if res else None
+
+                ## Just a name given, not a real path.
+            uname_cmd = osp.join(git_dir, 'uname')
+            uname = check_output(uname_cmd)
+            is_cygwin = 'CYGWIN' in uname
+        except Exception as ex:
+            log.debug('Failed checking if running in CYGWIN due to: %r', ex)
+        _is_cygwin_cache[git_executable] = is_cygwin
+
+    return is_cygwin
