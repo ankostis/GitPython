@@ -54,7 +54,7 @@ install:
       )
     - pip install   nose ddt wheel codecov
     -   IF "%PYTHON_VERSION%"=="2.7" (
-            pip install mock contextlib2 backports.tempfile
+            pip install mock contextlib2
         )
 
     ## Copied from `init-tests-after-clone.sh`.

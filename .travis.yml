@@ -18,7 +18,7 @@ install:
   - git submodule update --init --recursive
   - git fetch --tags
   - pip install codecov flake8 ddt sphinx
-  - if [ "$TRAVIS_PYTHON_VERSION" == '2.7' ]; then pip install  mock contextlib2 backports.tempfile; fi
+  - if [ "$TRAVIS_PYTHON_VERSION" == '2.7' ]; then pip install  mock contextlib2; fi
 
   # generate some reflog as git-python tests need it (in master)
   - ./init-tests-after-clone.sh

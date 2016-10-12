@@ -23,11 +23,9 @@ import os.path as osp
 try:
     from unittest import mock
     from contextlib import ExitStack
-    from tempfile import TemporaryDirectory
 except ImportError:  # PY2
     import mock
     from contextlib2 import ExitStack  # @UnusedImport
-    from backports.tempfile import TemporaryDirectory  # @UnusedImport
 
 
 ospd = osp.dirname
@@ -244,7 +242,9 @@ def tmp_clone(repo, clone_prefix, **clone_kwargs):
         gc.collect()
 
     with ExitStack() as stack:
-        clone_dir = stack.enter_context(TemporaryDirectory(prefix=clone_prefix))
+        clone_dir = tempfile.mkdtemp(prefix=clone_prefix)
+        stack.callback(rmtree, clone_dir)
+
         clone = repo.clone(clone_dir, **clone_kwargs)
         stack.callback(cleanup_clone, clone)
 
