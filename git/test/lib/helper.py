@@ -11,13 +11,15 @@ import logging
 import os
 import tempfile
 import textwrap
+import subprocess
 import time
 from unittest import TestCase
 
-from git.compat import string_types, is_win
+from git.compat import string_types, is_win, is_posix
 from git.util import rmtree
 
 import os.path as osp
+from git.cmd import PROC_CREATIONFLAGS
 
 
 ospd = osp.dirname
@@ -163,30 +165,30 @@ def with_rw_repo(working_tree_ref, bare=False):
 
 
 def launch_git_daemon(base_path, ip, port):
-    from git import Git
+    daemon_cmd = ['--enable=receive-pack',
+                  '--listen=%s' % ip,
+                  '--port=%s' % port,
+                  '--base-path=%s' % base_path,
+                  base_path]
+    ## On MINGW-git, daemon exists in .\Git\mingw64\libexec\git-core\,
+    #  but if invoked as 'git daemon', it detaches from parent `git` cmd,
+    #  and then CANNOT DIE!
+    #  So, invoke it as a single command `git-daemon`.
+    #
     if is_win:
-        ## On MINGW-git, daemon exists in .\Git\mingw64\libexec\git-core\,
-        #  but if invoked as 'git daemon', it detaches from parent `git` cmd,
-        #  and then CANNOT DIE!
-        #  So, invoke it as a single command.
-        ## Cygwin-git has no daemon.  But it can use MINGW's.
-        #
-        daemon_cmd = ['git-daemon',
-                      '--enable=receive-pack',
-                      '--listen=%s' % ip,
-                      '--port=%s' % port,
-                      '--base-path=%s' % base_path,
-                      base_path]
-        gd = Git().execute(daemon_cmd, as_process=True)
+        ## Note: Cygwin-git has no daemon.  But it can use MINGW's.
+        daemon_cmd.insert(0, 'git-daemon')
     else:
-        gd = Git().daemon(base_path,
-                          enable='receive-pack',
-                          listen=ip,
-                          port=port,
-                          base_path=base_path,
-                          as_process=True)
+        daemon_cmd = ['git', 'daemon'] + daemon_cmd
+
+    gd = subprocess.Popen(daemon_cmd,
+                          stdout=subprocess.DEVNULL,
+                          stderr=subprocess.DEVNULL,
+                          close_fds=is_posix,
+                          creationflags=PROC_CREATIONFLAGS,
+                          )
     # yes, I know ... fortunately, this is always going to work if sleep time is just large enough
-    time.sleep(0.5)
+    time.sleep(0.5 * (1 + is_win))
     return gd
 
 
@@ -293,7 +295,7 @@ def with_rw_and_rw_remote_repo(working_tree_ref):
             finally:
                 try:
                     log.debug("Killing git-daemon...")
-                    gd.proc.kill()
+                    gd.kill()
                 except:
                     ## Either it has died (and we're here), or it won't die, again here...
                     pass
@@ -309,7 +311,7 @@ def with_rw_and_rw_remote_repo(working_tree_ref):
                     rmtree(remote_repo_dir)
 
                 if gd is not None:
-                    gd.proc.wait()
+                    gd.wait()
             # END cleanup
         # END bare repo creator
         return remote_repo_creator
