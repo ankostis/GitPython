@@ -109,13 +109,12 @@ def handle_process_output(process, stdout_handler, stderr_handler,
         t.start()
         threads.append(t)
 
-    ## FIXME: Why Join??  Will block if `stdin` needs feeding...
-    #
-    for t in threads:
-        t.join()
-
     if finalizer:
         return finalizer(process)
+    else:
+        ## FIXME: Why Join??  Will block if `stdin` needs feeding...
+        for t in threads:
+            t.join()
 
 
 def dashify(string):
