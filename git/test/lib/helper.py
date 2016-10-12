@@ -14,8 +14,9 @@ import tempfile  # @UnusedImport
 import textwrap
 import time
 from unittest import TestCase
+import unittest
 
-from git.compat import string_types, is_win
+from git.compat import string_types, is_win, PY3
 from git.util import rmtree, cwd
 import os.path as osp
 
@@ -76,18 +77,6 @@ class StringProcessAdapter(object):
 #{ Decorators
 
 
-def _mktemp(*args):
-    """Wrapper around default tempfile.mktemp to fix an osx issue
-    :note: the OSX special case was removed as it was unclear why that was needed in the first place. It seems
-    to be just fine without it. However, if we leave this special case, and if TMPDIR is set to something custom,
-    prefixing /private/ will lead to incorrect paths on OSX."""
-    tdir = tempfile.mktemp(*args)
-    # See :note: above to learn why this is comented out.
-    # if is_darwin:
-    #     tdir = '/private' + tdir
-    return tdir
-
-
 def with_rw_directory(func):
     """Create a temporary directory which can be written to, remove it if the
     test succeeds, but leave it otherwise to aid additional debugging"""
@@ -137,7 +126,7 @@ def with_rw_repo(working_tree_ref, bare=False):
             if bare:
                 prefix = ''
             # END handle prefix
-            repo_dir = _mktemp("%sbare_%s" % (prefix, func.__name__))
+            repo_dir = tempfile.mktemp("%sbare_%s" % (prefix, func.__name__))
             rw_repo = self.rorepo.clone(repo_dir, shared=True, bare=bare, n=True)
 
             rw_repo.head.commit = rw_repo.commit(working_tree_ref)
@@ -349,6 +338,9 @@ class TestBase(TestCase):
       shas for your objects, be sure you choose some that are part of the immutable portion
       of the project history ( to assure tests don't fail for others ).
     """
+
+    if not PY3:
+        assertRaisesRegex = unittest.TestCase.assertRaisesRegexp
 
     def _small_repo_url(self):
         """:return" a path to a small, clonable repository"""
