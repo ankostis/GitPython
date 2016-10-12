@@ -35,6 +35,7 @@ from .compat import (
 )
 from .exc import InvalidGitRepositoryError
 from unittest.case import SkipTest
+import contextlib
 
 
 # NOTE:  Some of the unused imports might be used/imported by others.
@@ -67,6 +68,16 @@ def unbare_repo(func):
         return func(self, *args, **kwargs)
     # END wrapper
     return wrapper
+
+
+@contextlib.contextmanager
+def cwd(new_dir):
+    old_dir = os.getcwd()
+    os.chdir(new_dir)
+    try:
+        yield new_dir
+    finally:
+        os.chdir(old_dir)
 
 
 def rmtree(path):

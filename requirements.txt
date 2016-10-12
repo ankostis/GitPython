@@ -1,3 +1,4 @@
 gitdb>=0.6.4
-ddt
-mock
+mock                # PY2 only
+contextlib2         # PY2 only
+backports.tempfile  # PY2 only

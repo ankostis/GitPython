@@ -14,7 +14,7 @@ from git.test.lib import (
     TestBase,
     assert_raises,
     with_rw_repo,
-    with_rw_and_rw_remote_repo
+    rw_and_rw_remote_repos
 )
 from git import (
     Blob,
@@ -25,6 +25,7 @@ from git import (
 from git.objects.util import get_object_type_by_name
 from gitdb.util import hex_to_bin
 from git.compat import is_win
+from git.util import HIDE_WINDOWS_KNOWN_ERRORS
 
 
 class TestBase(TestBase):
@@ -110,11 +111,12 @@ class TestBase(TestBase):
         assert not rw_repo.config_reader("repository").getboolean("core", "bare")
         assert os.path.isdir(os.path.join(rw_repo.working_tree_dir, 'lib'))
 
-    @with_rw_and_rw_remote_repo('0.1.6')
-    def test_with_rw_remote_and_rw_repo(self, rw_repo, rw_remote_repo):
-        assert not rw_repo.config_reader("repository").getboolean("core", "bare")
-        assert rw_remote_repo.config_reader("repository").getboolean("core", "bare")
-        assert os.path.isdir(os.path.join(rw_repo.working_tree_dir, 'lib'))
+    @skipIf(HIDE_WINDOWS_KNOWN_ERRORS, "FIXME: Freezes!")
+    def test_with_rw_remote_and_rw_repo(self):
+        with rw_and_rw_remote_repos(self.rorepo, '0.1.6') as (rw_repo, rw_remote_repo):
+            assert not rw_repo.config_reader("repository").getboolean("core", "bare")
+            assert rw_remote_repo.config_reader("repository").getboolean("core", "bare")
+            assert os.path.isdir(os.path.join(rw_repo.working_tree_dir, 'lib'))
 
     @skipIf(sys.version_info < (3,) and is_win,
             "Unicode woes, see https://github.com/gitpython-developers/GitPython/pull/519")

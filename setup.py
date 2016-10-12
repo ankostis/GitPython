@@ -66,7 +66,7 @@ def _stamp_version(filename):
 
 install_requires = ['gitdb >= 0.6.4']
 extras_require = {
-    ':python_version == "2.6"': ['ordereddict'],
+    ':python_version == "2.6"': ['ordereddict', 'mock', 'contextlib2', 'backports.tempfile'],
 }
 test_requires = ['ddt']
 if sys.version_info[:2] < (2, 7):

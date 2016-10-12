@@ -7,7 +7,7 @@
 from git.test.lib import (
     TestBase,
     with_rw_repo,
-    with_rw_and_rw_remote_repo,
+    rw_and_rw_remote_repos,
     fixture,
     GIT_DAEMON_PORT,
     assert_raises
@@ -389,96 +389,96 @@ class TestRemote(TestBase):
         remote.push(":%s" % other_tag.path)
 
     @skipIf(HIDE_WINDOWS_KNOWN_ERRORS, "FIXME: Freezes!")
-    @with_rw_and_rw_remote_repo('0.1.6')
-    def test_base(self, rw_repo, remote_repo):
-        num_remotes = 0
-        remote_set = set()
-        ran_fetch_test = False
+    def test_base(self):
+        with rw_and_rw_remote_repos(self.rorepo, '0.1.6') as (rw_repo, remote_repo):
+            num_remotes = 0
+            remote_set = set()
+            ran_fetch_test = False
 
-        for remote in rw_repo.remotes:
-            num_remotes += 1
-            assert remote == remote
-            assert str(remote) != repr(remote)
-            remote_set.add(remote)
-            remote_set.add(remote)  # should already exist
+            for remote in rw_repo.remotes:
+                num_remotes += 1
+                assert remote == remote
+                assert str(remote) != repr(remote)
+                remote_set.add(remote)
+                remote_set.add(remote)  # should already exist
 
-            # REFS
-            refs = remote.refs
-            assert refs
-            for ref in refs:
-                assert ref.remote_name == remote.name
-                assert ref.remote_head
-            # END for each ref
+                # REFS
+                refs = remote.refs
+                assert refs
+                for ref in refs:
+                    assert ref.remote_name == remote.name
+                    assert ref.remote_head
+                # END for each ref
 
-            # OPTIONS
-            # cannot use 'fetch' key anymore as it is now a method
-            for opt in ("url",):
-                val = getattr(remote, opt)
-                reader = remote.config_reader
-                assert reader.get(opt) == val
-                assert reader.get_value(opt, None) == val
+                # OPTIONS
+                # cannot use 'fetch' key anymore as it is now a method
+                for opt in ("url",):
+                    val = getattr(remote, opt)
+                    reader = remote.config_reader
+                    assert reader.get(opt) == val
+                    assert reader.get_value(opt, None) == val
 
-                # unable to write with a reader
-                self.failUnlessRaises(IOError, reader.set, opt, "test")
+                    # unable to write with a reader
+                    self.failUnlessRaises(IOError, reader.set, opt, "test")
 
-                # change value
-                with remote.config_writer as writer:
-                    new_val = "myval"
-                    writer.set(opt, new_val)
-                    assert writer.get(opt) == new_val
-                    writer.set(opt, val)
-                    assert writer.get(opt) == val
-                assert getattr(remote, opt) == val
-            # END for each default option key
+                    # change value
+                    with remote.config_writer as writer:
+                        new_val = "myval"
+                        writer.set(opt, new_val)
+                        assert writer.get(opt) == new_val
+                        writer.set(opt, val)
+                        assert writer.get(opt) == val
+                    assert getattr(remote, opt) == val
+                # END for each default option key
 
-            # RENAME
-            other_name = "totally_other_name"
-            prev_name = remote.name
-            assert remote.rename(other_name) == remote
-            assert prev_name != remote.name
-            # multiple times
-            for _ in range(2):
-                assert remote.rename(prev_name).name == prev_name
-            # END for each rename ( back to prev_name )
+                # RENAME
+                other_name = "totally_other_name"
+                prev_name = remote.name
+                assert remote.rename(other_name) == remote
+                assert prev_name != remote.name
+                # multiple times
+                for _ in range(2):
+                    assert remote.rename(prev_name).name == prev_name
+                # END for each rename ( back to prev_name )
 
-            # PUSH/PULL TESTING
-            self._assert_push_and_pull(remote, rw_repo, remote_repo)
+                # PUSH/PULL TESTING
+                self._assert_push_and_pull(remote, rw_repo, remote_repo)
 
-            # FETCH TESTING
-            # Only for remotes - local cases are the same or less complicated
-            # as additional progress information will never be emitted
-            if remote.name == "daemon_origin":
-                self._do_test_fetch(remote, rw_repo, remote_repo)
-                ran_fetch_test = True
-            # END fetch test
+                # FETCH TESTING
+                # Only for remotes - local cases are the same or less complicated
+                # as additional progress information will never be emitted
+                if remote.name == "daemon_origin":
+                    self._do_test_fetch(remote, rw_repo, remote_repo)
+                    ran_fetch_test = True
+                # END fetch test
 
-            remote.update()
-        # END for each remote
+                remote.update()
+            # END for each remote
 
-        assert ran_fetch_test
-        assert num_remotes
-        assert num_remotes == len(remote_set)
+            assert ran_fetch_test
+            assert num_remotes
+            assert num_remotes == len(remote_set)
 
-        origin = rw_repo.remote('origin')
-        assert origin == rw_repo.remotes.origin
+            origin = rw_repo.remote('origin')
+            assert origin == rw_repo.remotes.origin
 
-        # Verify we can handle prunes when fetching
-        # stderr lines look like this:  x [deleted]         (none)     -> origin/experiment-2012
-        # These should just be skipped
-        # If we don't have a manual checkout, we can't actually assume there are any non-master branches
-        remote_repo.create_head("myone_for_deletion")
-        # Get the branch - to be pruned later
-        origin.fetch()
+            # Verify we can handle prunes when fetching
+            # stderr lines look like this:  x [deleted]         (none)     -> origin/experiment-2012
+            # These should just be skipped
+            # If we don't have a manual checkout, we can't actually assume there are any non-master branches
+            remote_repo.create_head("myone_for_deletion")
+            # Get the branch - to be pruned later
+            origin.fetch()
 
-        num_deleted = False
-        for branch in remote_repo.heads:
-            if branch.name != 'master':
-                branch.delete(remote_repo, branch, force=True)
-                num_deleted += 1
-            # end
-        # end for each branch
-        assert num_deleted > 0
-        assert len(rw_repo.remotes.origin.fetch(prune=True)) == 1, "deleted everything but master"
+            num_deleted = False
+            for branch in remote_repo.heads:
+                if branch.name != 'master':
+                    branch.delete(remote_repo, branch, force=True)
+                    num_deleted += 1
+                # end
+            # end for each branch
+            assert num_deleted > 0
+            assert len(rw_repo.remotes.origin.fetch(prune=True)) == 1, "deleted everything but master"
 
     @with_rw_repo('HEAD', bare=True)
     def test_creation_and_removal(self, bare_rw_repo):

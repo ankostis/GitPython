@@ -52,9 +52,9 @@ install:
         conda info -a &
         conda install --yes --quiet  pip
       )
-    - pip install  nose ddt wheel codecov
+    - pip install   nose ddt wheel codecov
     -   IF "%PYTHON_VERSION%"=="2.7" (
-            pip install mock
+            pip install mock contextlib2 backports.tempfile
         )
 
     ## Copied from `init-tests-after-clone.sh`.

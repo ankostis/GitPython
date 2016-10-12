@@ -5,19 +5,29 @@
 # the BSD License: http://www.opensource.org/licenses/bsd-license.php
 from __future__ import print_function
 
+import contextlib
 from functools import wraps
 import io
 import logging
 import os
-import tempfile
+import tempfile  # @UnusedImport
 import textwrap
 import time
 from unittest import TestCase
 
 from git.compat import string_types, is_win
-from git.util import rmtree
-
+from git.util import rmtree, cwd
 import os.path as osp
+
+
+try:
+    from unittest import mock
+    from contextlib import ExitStack
+    from tempfile import TemporaryDirectory
+except ImportError:  # PY2
+    import mock
+    from contextlib2 import ExitStack  # @UnusedImport
+    from backports.tempfile import TemporaryDirectory  # @UnusedImport
 
 
 ospd = osp.dirname
@@ -27,7 +37,7 @@ GIT_DAEMON_PORT = os.environ.get("GIT_PYTHON_TEST_GIT_DAEMON_PORT", "19418")
 
 __all__ = (
     'fixture_path', 'fixture', 'StringProcessAdapter',
-    'with_rw_directory', 'with_rw_repo', 'with_rw_and_rw_remote_repo', 'TestBase', 'TestCase',
+    'with_rw_directory', 'with_rw_repo', 'rw_and_rw_remote_repos', 'TestBase', 'TestCase',
     'GIT_REPO', 'GIT_DAEMON_PORT'
 )
 
@@ -162,39 +172,91 @@ def with_rw_repo(working_tree_ref, bare=False):
     return argument_passer
 
 
+@contextlib.contextmanager
 def launch_git_daemon(base_path, ip, port):
-    from git import Git
-    if is_win:
-        ## On MINGW-git, daemon exists in .\Git\mingw64\libexec\git-core\,
-        #  but if invoked as 'git daemon', it detaches from parent `git` cmd,
-        #  and then CANNOT DIE!
-        #  So, invoke it as a single command.
-        ## Cygwin-git has no daemon.  But it can use MINGW's.
-        #
-        daemon_cmd = ['git-daemon',
-                      '--enable=receive-pack',
-                      '--listen=%s' % ip,
-                      '--port=%s' % port,
-                      '--base-path=%s' % base_path,
-                      base_path]
-        gd = Git().execute(daemon_cmd, as_process=True)
-    else:
-        gd = Git().daemon(base_path,
-                          enable='receive-pack',
-                          listen=ip,
-                          port=port,
-                          base_path=base_path,
-                          as_process=True)
-    # yes, I know ... fortunately, this is always going to work if sleep time is just large enough
-    time.sleep(0.5)
-    return gd
+    from git import Git  # Avoid circular deps.
+
+    gd_launched = False
+    try:
+        if is_win:
+            ## On MINGW-git, daemon exists in .\Git\mingw64\libexec\git-core\,
+            #  but if invoked as 'git daemon', it detaches from parent `git` cmd,
+            #  and then CANNOT DIE!
+            #  So, invoke it as a single command.
+            ## Cygwin-git has no daemon.  But it can use MINGW's.
+            #
+            daemon_cmd = ['git-daemon',
+                          '--enable=receive-pack',
+                          '--listen=%s' % ip,
+                          '--port=%s' % port,
+                          '--base-path=%s' % base_path,
+                          base_path]
+            gd = Git().execute(daemon_cmd, as_process=True)
+        else:
+            gd = Git().daemon(base_path,
+                              enable='receive-pack',
+                              listen=ip,
+                              port=port,
+                              base_path=base_path,
+                              as_process=True)
+        gd_launched = True
+        # yes, I know ... fortunately, this is always going to work if sleep time is just large enough
+        time.sleep(0.5 * (1 + is_win))
+
+        yield gd
+
+    except Exception as ex:
+        msg = textwrap.dedent("""
+        Launching git-daemon failed due to: %s
+          Probably test will fail subsequently.
+
+          BUT you may start *git-daemon* manually with this command:"
+                git daemon --enable=receive-pack  --listen=%s --port=%s --base-path=%s  %s
+          You may also run the daemon on a different port by passing --port=<port>"
+          and setting the environment variable GIT_PYTHON_TEST_GIT_DAEMON_PORT to <port>
+        """)
+        if is_win:
+            msg += textwrap.dedent("""
+
+            On Windows,
+              the `git-daemon.exe` must be in PATH.
+              For MINGW, look into .\Git\mingw64\libexec\git-core\), but problems with paths might appear.
+              CYGWIN has no daemon, but if one exists, it gets along fine (but has also paths problems).""")
+        log.warning(msg, ex, ip, port, base_path, base_path, exc_info=1)
+
+        yield mock.MagicMock()  # @UndefinedVariable
+
+    finally:
+        if gd_launched:
+            try:
+                log.debug("Killing git-daemon...")
+                gd.proc.kill()
+            except Exception as ex:
+                ## Either it has died (and we're here), or it won't die, again here...
+                log.debug("Hidden error while Killing git-daemon: %s", ex, exc_info=1)
 
 
-def with_rw_and_rw_remote_repo(working_tree_ref):
+@contextlib.contextmanager
+def tmp_clone(repo, clone_prefix, **clone_kwargs):
+    def cleanup_clone(repo):
+        repo.git.clear_cache()
+        import gc
+        gc.collect()
+
+    with ExitStack() as stack:
+        clone_dir = stack.enter_context(TemporaryDirectory(prefix=clone_prefix))
+        clone = repo.clone(clone_dir, **clone_kwargs)
+        stack.callback(cleanup_clone, clone)
+
+        yield clone
+
+
+@contextlib.contextmanager
+def rw_and_rw_remote_repos(repo, working_tree_ref):
     """
-    Same as with_rw_repo, but also provides a writable remote repository from which the
-    rw_repo has been forked as well as a handle for a git-daemon that may be started to
-    run the remote_repo.
+    A context-manager creating the same temporary-repo as `with_rw_repo` and in addition
+    a writable remote non-bare repository from which the rw_repo has been forked as well as a handle
+    for a git-daemon that may be started to run the remote_repo.
     The remote repository was cloned as bare repository from the rorepo, wheras
     the rw repo has a working tree and was cloned from the remote repository.
 
@@ -203,11 +265,13 @@ def with_rw_and_rw_remote_repo(working_tree_ref):
     and should be an inetd service that serves tempdir.gettempdir() and all
     directories in it.
 
-    The following scetch demonstrates this::
-     rorepo ---<bare clone>---> rw_remote_repo ---<clone>---> rw_repo
+    The following sketch demonstrates this::
+     rorepo ---<bare clone>---> remote_repo ---<clone>---> rw_repo
 
-    The test case needs to support the following signature::
-        def case(self, rw_repo, rw_remote_repo)
+    It is used like that::
+
+        with  rw_and_rw_remote_repos(origin_repo) as (rw_repo, remote_repo):
+            ...
 
     This setup allows you to test push and pull scenarios and hooks nicely.
 
@@ -218,105 +282,51 @@ def with_rw_and_rw_remote_repo(working_tree_ref):
 
     assert isinstance(working_tree_ref, string_types), "Decorator requires ref name for working tree checkout"
 
-    def argument_passer(func):
+    with ExitStack() as stack:
+        rw_remote_repo = stack.enter_context(tmp_clone(repo,
+                                                       clone_prefix="remote_bare_repo_%s",
+                                                       shared=True,
+                                                       bare=True))
+        rw_repo = stack.enter_context(tmp_clone(rw_remote_repo,
+                                                clone_prefix="remote_clone_non_bare_repo_",
+                                                shared=True,
+                                                bare=False,
+                                                n=True))
+        remote_repo_dir = rw_remote_repo.working_dir
 
-        @wraps(func)
-        def remote_repo_creator(self):
-            remote_repo_dir = _mktemp("remote_repo_%s" % func.__name__)
-            repo_dir = _mktemp("remote_clone_non_bare_repo")
+        # recursive alternates info ?
+        rw_repo.head.commit = working_tree_ref
+        rw_repo.head.reference.checkout()
 
-            rw_remote_repo = self.rorepo.clone(remote_repo_dir, shared=True, bare=True)
-            # recursive alternates info ?
-            rw_repo = rw_remote_repo.clone(repo_dir, shared=True, bare=False, n=True)
-            rw_repo.head.commit = working_tree_ref
-            rw_repo.head.reference.checkout()
+        # Allow git-daemon in bare-repo (https://git-scm.com/book/en/v2/Git-on-the-Server-Git-Daemon).
+        rw_remote_repo.daemon_export = True
 
-            # prepare for git-daemon
-            rw_remote_repo.daemon_export = True
-
-            # this thing is just annoying !
-            with rw_remote_repo.config_writer() as crw:
-                section = "daemon"
-                try:
-                    crw.add_section(section)
-                except Exception:
-                    pass
-                crw.set(section, "receivepack", True)
-
-            # Initialize the remote - first do it as local remote and pull, then
-            # we change the url to point to the daemon.
-            d_remote = Remote.create(rw_repo, "daemon_origin", remote_repo_dir)
-            d_remote.fetch()
-
-            base_path, rel_repo_dir = osp.split(remote_repo_dir)
-
-            remote_repo_url = Git.polish_url("git://localhost:%s/%s" % (GIT_DAEMON_PORT, rel_repo_dir))
-            with d_remote.config_writer as cw:
-                cw.set('url', remote_repo_url)
-
+        section = "daemon"
+        with rw_remote_repo.config_writer() as crw:
             try:
-                gd = launch_git_daemon(Git.polish_url(base_path), '127.0.0.1', GIT_DAEMON_PORT)
-            except Exception as ex:
-                if is_win:
-                    msg = textwrap.dedent("""
-                    The `git-daemon.exe` must be in PATH.
-                    For MINGW, look into .\Git\mingw64\libexec\git-core\), but problems with paths might appear.
-                    CYGWIN has no daemon, but if one exists, it gets along fine (has also paths problems)
-                    Anyhow, alternatively try starting `git-daemon` manually:""")
-                else:
-                    msg = "Please try starting `git-daemon` manually:"
-                msg += textwrap.dedent("""
-                    git daemon --enable=receive-pack  --base-path=%s  %s
-                You can also run the daemon on a different port by passing --port=<port>"
-                and setting the environment variable GIT_PYTHON_TEST_GIT_DAEMON_PORT to <port>
-                """ % (base_path, base_path))
-                raise AssertionError(ex, msg)
-                # END make assertion
-            else:
-                # Try listing remotes, to diagnose whether the daemon is up.
-                rw_repo.git.ls_remote(d_remote)
+                crw.add_section(section)  # TODO: Add section if not exists.
+            except Exception:
+                pass
+            crw.set(section, "receivepack", True)
 
-                # adjust working dir
-                prev_cwd = os.getcwd()
-                os.chdir(rw_repo.working_dir)
+        # Initialize the non-bare repo - first do it as local remote and pull, then
+        # we change the URL to point to the "relative" against "daemon's `--base-path`.
+        #
+        d_remote = Remote.create(rw_repo, "daemon_origin", remote_repo_dir)
+        d_remote.fetch()
+        base_path, rel_repo_dir = osp.split(remote_repo_dir)
+        remote_repo_url = Git.polish_url("git://localhost:%s/%s" % (GIT_DAEMON_PORT, rel_repo_dir))
+        with d_remote.config_writer as cw:
+            cw.set('url', remote_repo_url)
 
-                try:
-                    return func(self, rw_repo, rw_remote_repo)
-                except:
-                    log.info("Keeping repos after failure: repo_dir = %s, remote_repo_dir = %s",
-                             repo_dir, remote_repo_dir)
-                    repo_dir = remote_repo_dir = None
-                    raise
-                finally:
-                    os.chdir(prev_cwd)
+        stack.enter_context(launch_git_daemon(Git.polish_url(base_path), '127.0.0.1', GIT_DAEMON_PORT))
 
-            finally:
-                try:
-                    log.debug("Killing git-daemon...")
-                    gd.proc.kill()
-                except:
-                    ## Either it has died (and we're here), or it won't die, again here...
-                    pass
+        # Try listing remotes, to diagnose whether the daemon is up.
+        rw_repo.git.ls_remote(d_remote)
 
-                rw_repo.git.clear_cache()
-                rw_remote_repo.git.clear_cache()
-                rw_repo = rw_remote_repo = None
-                import gc
-                gc.collect()
-                if repo_dir:
-                    rmtree(repo_dir)
-                if remote_repo_dir:
-                    rmtree(remote_repo_dir)
-
-                if gd is not None:
-                    gd.proc.wait()
-            # END cleanup
-        # END bare repo creator
-        return remote_repo_creator
-        # END remote repo creator
-    # END argument parser
-
-    return argument_passer
+        # adjust working dir
+        stack.enter_context(cwd(rw_repo.working_dir))
+        yield rw_repo, rw_remote_repo
 
 #} END decorators
 
