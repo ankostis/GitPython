@@ -4,14 +4,10 @@
 # This module is part of GitPython and is released under
 # the BSD License: http://www.opensource.org/licenses/bsd-license.php
 
-from git.test.lib import (
-    TestBase,
-    with_rw_repo,
-    rw_and_rw_remote_repos,
-    fixture,
-    GIT_DAEMON_PORT,
-    assert_raises
-)
+import random
+import tempfile
+from unittest.case import skipIf
+
 from git import (
     RemoteProgress,
     FetchInfo,
@@ -25,14 +21,19 @@ from git import (
     Remote,
     GitCommandError
 )
-from git.util import IterableList, rmtree
-from git.compat import string_types
-import tempfile
-import os.path as osp
-import random
-from unittest.case import skipIf
-from git.util import HIDE_WINDOWS_KNOWN_ERRORS
 from git.cmd import Git
+from git.compat import string_types
+from git.test.lib import (
+    TestBase,
+    with_rw_repo,
+    rw_and_rw_remote_repos,
+    fixture,
+    GIT_DAEMON_PORT,
+    assert_raises
+)
+from git.util import IterableList, rmtree, HIDE_WINDOWS_FREEZE_ERRORS
+import os.path as osp
+
 
 # assure we have repeatable results
 random.seed(0)
@@ -213,7 +214,7 @@ class TestRemote(TestBase):
         new_remote_branch.rename("other_branch_name")
         res = fetch_and_test(remote)
         other_branch_info = get_info(res, remote, new_remote_branch)
-        assert other_branch_info.ref.commit == new_branch_info.ref.commit
+        self.assertEqual(other_branch_info.ref.commit, new_branch_info.ref.commit)
 
         # remove new branch
         Head.delete(new_remote_branch.repo, new_remote_branch)
@@ -223,34 +224,37 @@ class TestRemote(TestBase):
 
         # prune stale tracking branches
         stale_refs = remote.stale_refs
-        assert len(stale_refs) == 2 and isinstance(stale_refs[0], RemoteReference)
+        self.assertEqual(len(stale_refs), 2)
+        self.assertIsInstance(stale_refs[0], RemoteReference)
         RemoteReference.delete(rw_repo, *stale_refs)
 
         # test single branch fetch with refspec including target remote
         res = fetch_and_test(remote, refspec="master:refs/remotes/%s/master" % remote)
-        assert len(res) == 1 and get_info(res, remote, 'master')
+        self.assertEqual(len(res), 1)
+        self.assertTrue(get_info(res, remote, 'master'))
 
         # ... with respec and no target
         res = fetch_and_test(remote, refspec='master')
-        assert len(res) == 1
+        self.assertEqual(len(res), 1)
 
         # ... multiple refspecs ... works, but git command returns with error if one ref is wrong without
         # doing anything. This is new in  later binaries
         # res = fetch_and_test(remote, refspec=['master', 'fred'])
-        # assert len(res) == 1
+        # self.assertEqual(len(res), 1)
 
         # add new tag reference
         rtag = TagReference.create(remote_repo, "1.0-RV_hello.there")
         res = fetch_and_test(remote, tags=True)
         tinfo = res[str(rtag)]
-        assert isinstance(tinfo.ref, TagReference) and tinfo.ref.commit == rtag.commit
+        self.assertIsInstance(tinfo.ref, TagReference)
+        self.assertEqual(tinfo.ref.commit, rtag.commit)
         assert tinfo.flags & tinfo.NEW_TAG
 
         # adjust tag commit
         Reference.set_object(rtag, rhead.commit.parents[0].parents[0])
         res = fetch_and_test(remote, tags=True)
         tinfo = res[str(rtag)]
-        assert tinfo.commit == rtag.commit
+        self.assertEqual(tinfo.commit, rtag.commit)
         assert tinfo.flags & tinfo.TAG_UPDATE
 
         # delete remote tag - local one will stay
@@ -326,7 +330,7 @@ class TestRemote(TestBase):
 
         # force rejected pull
         res = remote.push('+%s' % lhead.reference)
-        assert res[0].flags & PushInfo.ERROR == 0
+        self.assertEqual(res[0].flags & PushInfo.ERROR, 0)
         assert res[0].flags & PushInfo.FORCED_UPDATE
         self._do_test_push_result(res, remote)
 
@@ -352,7 +356,8 @@ class TestRemote(TestBase):
 
         # push force this tag
         res = remote.push("+%s" % new_tag.path)
-        assert res[-1].flags & PushInfo.ERROR == 0 and res[-1].flags & PushInfo.FORCED_UPDATE
+        self.assertEqual(res[-1].flags & PushInfo.ERROR, 0)
+        self.assertTrue(res[-1].flags & PushInfo.FORCED_UPDATE)
 
         # delete tag - have to do it using refspec
         res = remote.push(":%s" % new_tag.path)
@@ -388,7 +393,7 @@ class TestRemote(TestBase):
         TagReference.delete(rw_repo, new_tag, other_tag)
         remote.push(":%s" % other_tag.path)
 
-    @skipIf(HIDE_WINDOWS_KNOWN_ERRORS, "FIXME: Freezes!")
+    @skipIf(HIDE_WINDOWS_FREEZE_ERRORS, "FIXME: Freezes!")
     def test_base(self):
         with rw_and_rw_remote_repos(self.rorepo, '0.1.6') as (rw_repo, remote_repo):
             num_remotes = 0
@@ -397,7 +402,7 @@ class TestRemote(TestBase):
 
             for remote in rw_repo.remotes:
                 num_remotes += 1
-                assert remote == remote
+                self.assertEqual(remote, remote)
                 assert str(remote) != repr(remote)
                 remote_set.add(remote)
                 remote_set.add(remote)  # should already exist
@@ -406,7 +411,7 @@ class TestRemote(TestBase):
                 refs = remote.refs
                 assert refs
                 for ref in refs:
-                    assert ref.remote_name == remote.name
+                    self.assertEqual(ref.remote_name, remote.name)
                     assert ref.remote_head
                 # END for each ref
 
@@ -415,8 +420,8 @@ class TestRemote(TestBase):
                 for opt in ("url",):
                     val = getattr(remote, opt)
                     reader = remote.config_reader
-                    assert reader.get(opt) == val
-                    assert reader.get_value(opt, None) == val
+                    self.assertEqual(reader.get(opt), val)
+                    self.assertEqual(reader.get_value(opt, None), val)
 
                     # unable to write with a reader
                     self.failUnlessRaises(IOError, reader.set, opt, "test")
@@ -425,20 +430,20 @@ class TestRemote(TestBase):
                     with remote.config_writer as writer:
                         new_val = "myval"
                         writer.set(opt, new_val)
-                        assert writer.get(opt) == new_val
+                        self.assertEqual(writer.get(opt), new_val)
                         writer.set(opt, val)
-                        assert writer.get(opt) == val
-                    assert getattr(remote, opt) == val
+                        self.assertEqual(writer.get(opt), val)
+                    self.assertEqual(getattr(remote, opt), val)
                 # END for each default option key
 
                 # RENAME
                 other_name = "totally_other_name"
                 prev_name = remote.name
-                assert remote.rename(other_name) == remote
+                self.assertEqual(remote.rename(other_name), remote)
                 assert prev_name != remote.name
                 # multiple times
                 for _ in range(2):
-                    assert remote.rename(prev_name).name == prev_name
+                    self.assertEqual(remote.rename(prev_name).name, prev_name)
                 # END for each rename ( back to prev_name )
 
                 # PUSH/PULL TESTING
@@ -457,10 +462,10 @@ class TestRemote(TestBase):
 
             assert ran_fetch_test
             assert num_remotes
-            assert num_remotes == len(remote_set)
+            self.assertEqual(num_remotes, len(remote_set))
 
             origin = rw_repo.remote('origin')
-            assert origin == rw_repo.remotes.origin
+            self.assertEqual(origin, rw_repo.remotes.origin)
 
             # Verify we can handle prunes when fetching
             # stderr lines look like this:  x [deleted]         (none)     -> origin/experiment-2012
@@ -478,14 +483,14 @@ class TestRemote(TestBase):
                 # end
             # end for each branch
             assert num_deleted > 0
-            assert len(rw_repo.remotes.origin.fetch(prune=True)) == 1, "deleted everything but master"
+            self.assertEqual(len(rw_repo.remotes.origin.fetch(prune=True)), 1, "deleted everything but master")
 
     @with_rw_repo('HEAD', bare=True)
     def test_creation_and_removal(self, bare_rw_repo):
         new_name = "test_new_one"
         arg_list = (new_name, "git@server:hello.git")
         remote = Remote.create(bare_rw_repo, *arg_list)
-        assert remote.name == "test_new_one"
+        self.assertEqual(remote.name, "test_new_one")
         assert remote in bare_rw_repo.remotes
         assert remote.exists()
 
@@ -520,7 +525,7 @@ class TestRemote(TestBase):
                                   remote_info_line_fmt % "local/master",
                                   fetch_info_line_fmt % 'remote-tracking branch')
         assert not fi.ref.is_valid()
-        assert fi.ref.name == "local/master"
+        self.assertEqual(fi.ref.name, "local/master")
 
         # handles non-default refspecs: One can specify a different path in refs/remotes
         # or a special path just in refs/something for instance
@@ -547,7 +552,7 @@ class TestRemote(TestBase):
                                   fetch_info_line_fmt % 'tag')
 
         assert isinstance(fi.ref, TagReference)
-        assert fi.ref.path == tag_path
+        self.assertEqual(fi.ref.path, tag_path)
 
         # branches default to refs/remotes
         fi = FetchInfo._from_line(self.rorepo,
@@ -555,7 +560,7 @@ class TestRemote(TestBase):
                                   fetch_info_line_fmt % 'branch')
 
         assert isinstance(fi.ref, RemoteReference)
-        assert fi.ref.remote_name == 'remotename'
+        self.assertEqual(fi.ref.remote_name, 'remotename')
 
         # but you can force it anywhere, in which case we only have a references
         fi = FetchInfo._from_line(self.rorepo,
@@ -563,7 +568,7 @@ class TestRemote(TestBase):
                                   fetch_info_line_fmt % 'branch')
 
         assert type(fi.ref) is Reference
-        assert fi.ref.path == "refs/something/branch"
+        self.assertEqual(fi.ref.path, "refs/something/branch")
 
     def test_uncommon_branch_names(self):
         stderr_lines = fixture('uncommon_branch_prefix_stderr').decode('ascii').splitlines()
@@ -574,8 +579,8 @@ class TestRemote(TestBase):
         res = [FetchInfo._from_line('ShouldntMatterRepo', stderr, fetch_line)
                for stderr, fetch_line in zip(stderr_lines, fetch_lines)]
         assert len(res)
-        assert res[0].remote_ref_path == 'refs/pull/1/head'
-        assert res[0].ref.path == 'refs/heads/pull/1/head'
+        self.assertEqual(res[0].remote_ref_path, 'refs/pull/1/head')
+        self.assertEqual(res[0].ref.path, 'refs/heads/pull/1/head')
         assert isinstance(res[0].ref, Head)
 
     @with_rw_repo('HEAD', bare=False)
@@ -588,22 +593,22 @@ class TestRemote(TestBase):
         remote = rw_repo.remotes[0]
         # Testing setting a single URL
         remote.set_url(test1)
-        assert list(remote.urls) == [test1]
+        self.assertEqual(list(remote.urls), [test1])
 
         # Testing replacing that single URL
         remote.set_url(test1)
-        assert list(remote.urls) == [test1]
+        self.assertEqual(list(remote.urls), [test1])
         # Testing adding new URLs
         remote.set_url(test2, add=True)
-        assert list(remote.urls) == [test1, test2]
+        self.assertEqual(list(remote.urls), [test1, test2])
         remote.set_url(test3, add=True)
-        assert list(remote.urls) == [test1, test2, test3]
+        self.assertEqual(list(remote.urls), [test1, test2, test3])
         # Testing removing an URL
         remote.set_url(test2, delete=True)
-        assert list(remote.urls) == [test1, test3]
+        self.assertEqual(list(remote.urls), [test1, test3])
         # Testing changing an URL
         remote.set_url(test3, test2)
-        assert list(remote.urls) == [test1, test2]
+        self.assertEqual(list(remote.urls), [test1, test2])
 
         # will raise: fatal: --add --delete doesn't make sense
         assert_raises(GitCommandError, remote.set_url, test2, add=True, delete=True)
@@ -611,13 +616,13 @@ class TestRemote(TestBase):
         # Testing on another remote, with the add/delete URL
         remote = rw_repo.create_remote('another', url=test1)
         remote.add_url(test2)
-        assert list(remote.urls) == [test1, test2]
+        self.assertEqual(list(remote.urls), [test1, test2])
         remote.add_url(test3)
-        assert list(remote.urls) == [test1, test2, test3]
+        self.assertEqual(list(remote.urls), [test1, test2, test3])
         # Testing removing all the URLs
         remote.delete_url(test2)
-        assert list(remote.urls) == [test1, test3]
+        self.assertEqual(list(remote.urls), [test1, test3])
         remote.delete_url(test1)
-        assert list(remote.urls) == [test3]
+        self.assertEqual(list(remote.urls), [test3])
         # will raise fatal: Will not delete all non-push URLs
         assert_raises(GitCommandError, remote.delete_url, test3)
