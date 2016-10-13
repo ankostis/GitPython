@@ -25,6 +25,7 @@ from git import (
 from git.objects.util import get_object_type_by_name
 from gitdb.util import hex_to_bin
 from git.compat import is_win
+from git.util import HIDE_WINDOWS_FREEZE_ERRORS
 
 
 class TestBase(TestBase):
@@ -110,7 +111,7 @@ class TestBase(TestBase):
         assert not rw_repo.config_reader("repository").getboolean("core", "bare")
         assert os.path.isdir(os.path.join(rw_repo.working_tree_dir, 'lib'))
 
-    #@skipIf(HIDE_WINDOWS_FREEZE_ERRORS, "FIXME: Freezes!  sometimes...")
+    @skipIf(HIDE_WINDOWS_FREEZE_ERRORS, "FIXME: Freezes!  sometimes...")
     def test_with_rw_remote_and_rw_repo(self):
         with rw_and_rw_remote_repos(self.rorepo, '0.1.6') as (rw_repo, rw_remote_repo):
             assert not rw_repo.config_reader("repository").getboolean("core", "bare")

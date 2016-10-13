@@ -225,19 +225,19 @@ def launch_git_daemon(base_path, ip, port):
 
 @contextlib.contextmanager
 def tmp_clone(repo, clone_prefix, **clone_kwargs):
-    def cleanup_clone(repo):
-        repo.git.clear_cache()
-        import gc
-        gc.collect()
-
-    with ExitStack() as stack:
-        clone_dir = tempfile.mkdtemp(prefix=clone_prefix)
-        stack.callback(rmtree, clone_dir)
-
+    clone_dir = tempfile.mkdtemp(prefix=clone_prefix)
+    try:
         clone = repo.clone(clone_dir, **clone_kwargs)
-        stack.callback(cleanup_clone, clone)
+        try:
+            yield clone
 
-        yield clone
+        finally:
+            clone.git.clear_cache()
+            del clone
+            import gc
+            gc.collect()
+    finally:
+        rmtree(clone_dir)
 
 
 @contextlib.contextmanager

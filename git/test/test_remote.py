@@ -33,6 +33,7 @@ from git.test.lib import (
 )
 from git.util import IterableList, rmtree, HIDE_WINDOWS_FREEZE_ERRORS
 import os.path as osp
+from git.test.lib.helper import tmp_clone
 
 
 # assure we have repeatable results
@@ -637,6 +638,8 @@ class TestRemote(TestBase):
             rem.fetch('__BAD_REF__')
 
     def test_push_error(self):
-        rem = self.rorepo.remote('origin')
-        with self.assertRaisesRegex(GitCommandError, "src refspec __BAD_REF__ does not match any"):
-            rem.push('__BAD_REF__')
+        with tmp_clone(self.rorepo, '0.1.6') as repo:
+            rem = repo.remote('origin')
+            with self.assertRaisesRegex(GitCommandError,
+                                        "src refspec __BAD_REF__ does not match any"):
+                rem.push('__BAD_REF__')
