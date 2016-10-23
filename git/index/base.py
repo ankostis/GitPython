@@ -3,6 +3,8 @@
 #
 # This module is part of GitPython and is released under
 # the BSD License: http://www.opensource.org/licenses/bsd-license.php
+from __future__ import unicode_literals
+
 import glob
 from io import BytesIO
 import os

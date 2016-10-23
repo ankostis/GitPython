@@ -3,6 +3,7 @@
 #
 # This module is part of GitPython and is released under
 # the BSD License: http://www.opensource.org/licenses/bsd-license.php
+from __future__ import unicode_literals
 
 from collections import namedtuple
 import logging
@@ -49,7 +50,7 @@ __all__ = ('Repo',)
 
 
 def _expand_path(p):
-    return osp.normpath(osp.abspath(osp.expandvars(osp.expanduser(p))))
+    return safe_decode(osp.normpath(osp.abspath(osp.expandvars(osp.expanduser(p)))))
 
 
 class Repo(object):

@@ -29,7 +29,7 @@ from gitdb.util import (# NOQA @IgnorePep8
     hex_to_bin,             # @UnusedImport
 )
 
-from git.compat import is_win
+from git.compat import is_win, safe_decode
 import os.path as osp
 
 from .compat import (
@@ -722,7 +722,7 @@ class LockFile(object):
     __slots__ = ("_file_path", "_owns_lock")
 
     def __init__(self, file_path):
-        self._file_path = file_path
+        self._file_path = safe_decode(file_path)
         self._owns_lock = False
 
     def __del__(self):
