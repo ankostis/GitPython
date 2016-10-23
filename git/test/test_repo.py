@@ -35,6 +35,7 @@ from git.compat import (
     is_win,
     string_types,
     win_encode,
+    safe_encode,
 )
 from git.exc import (
     BadObject,
@@ -804,7 +805,7 @@ class TestRepo(TestBase):
 
         # Test using an absolute gitdir path in the .git file.
         with open(git_file_path, 'wb') as fp:
-            fp.write(('gitdir: %s\n' % real_path_abs).encode('ascii'))
+            fp.write(safe_encode(('gitdir: %s\n' % real_path_abs)))
         git_file_repo = Repo(rwrepo.working_tree_dir)
         self.assertEqual(osp.abspath(git_file_repo.git_dir), real_path_abs)
 

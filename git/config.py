@@ -551,7 +551,7 @@ class GitConfigParser(with_metaclass(MetaParserBuilder, cp.RawConfigParser, obje
     def _value_to_string(self, value):
         if isinstance(value, (int, float, bool)):
             return str(value)
-        return force_text(value)
+        return force_text(value)  # No `safe_decode()`, let any unicode errors bubble-up.
 
     @needs_values
     @set_dirty_and_flush_changes

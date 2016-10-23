@@ -21,11 +21,11 @@ import threading
 from git.compat import (
     string_types,
     defenc,
-    force_bytes,
     PY3,
     # just to satisfy flake8 on py3
     unicode,
     safe_decode,
+    safe_encode,
     is_posix,
     is_win,
 )
@@ -274,13 +274,13 @@ class Git(LazyMixin):
             :raise GitCommandError: if the return status is not 0"""
             if stderr is None:
                 stderr = b''
-            stderr = force_bytes(stderr)
+            stderr = safe_encode(stderr)
 
             status = self.proc.wait()
 
             def read_all_from_possibly_closed_stream(stream):
                 try:
-                    return stderr + force_bytes(stream.read())
+                    return stderr + safe_encode(stream.read())
                 except ValueError:
                     return stderr or b''
 

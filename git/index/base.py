@@ -15,10 +15,10 @@ from git.compat import (
     izip,
     xrange,
     string_types,
-    force_bytes,
     defenc,
     mviter,
-    is_win
+    is_win,
+    safe_encode
 )
 from git.exc import (
     GitCommandError,
@@ -597,7 +597,7 @@ class IndexFile(LazyMixin, diff.Diffable, Serializable):
         st = os.lstat(filepath)     # handles non-symlinks as well
         if S_ISLNK(st.st_mode):
             # in PY3, readlink is string, but we need bytes. In PY2, it's just OS encoded bytes, we assume UTF-8
-            open_stream = lambda: BytesIO(force_bytes(os.readlink(filepath), encoding=defenc))
+            open_stream = lambda: BytesIO(safe_encode(os.readlink(filepath)))
         else:
             open_stream = lambda: open(filepath, 'rb')
         with open_stream() as stream:

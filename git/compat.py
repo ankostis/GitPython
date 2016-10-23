@@ -21,8 +21,7 @@ from gitdb.utils.compat import (
 from gitdb.utils.encoding import (
     string_types,    # @UnusedImport
     text_type,       # @UnusedImport
-    force_bytes,     # @UnusedImport
-    force_text       # @UnusedImport
+    force_text,      # @UnusedImport
 )
 
 
@@ -77,7 +76,7 @@ def safe_decode(s):
 def safe_encode(s):
     """Safely decodes a binary string to unicode"""
     if isinstance(s, unicode):
-        return s.encode(defenc)
+        return s.encode(defenc, 'surrogateescape')
     elif isinstance(s, bytes):
         return s
     elif s is not None:
@@ -123,8 +122,8 @@ class UnicodeMixin(object):
     else:  # Python 2
         def __str__(self):
             return self.__unicode__().encode(defenc)
-            
-            
+
+
 """
 This is Victor Stinner's pure-Python implementation of PEP 383: the "surrogateescape" error
 handler of Python 3.
@@ -139,11 +138,13 @@ FS_ERRORS = 'surrogateescape'
 #     # -- Python 2/3 compatibility -------------------------------------
 #     FS_ERRORS = 'my_surrogateescape'
 
+
 def u(text):
     if PY3:
         return text
     else:
         return text.decode('unicode_escape')
+
 
 def b(data):
     if PY3:
@@ -155,8 +156,9 @@ if PY3:
     _unichr = chr
     bytes_chr = lambda code: bytes((code,))
 else:
-    _unichr = unichr
+    _unichr = unichr  # @UndefinedVariable
     bytes_chr = chr
+
 
 def surrogateescape_handler(exc):
     """
@@ -204,7 +206,7 @@ def replace_surrogate_encode(mystring):
         # The following magic comes from Py3.3's Python/codecs.c file:
         if not 0xD800 <= code <= 0xDCFF:
             # Not a surrogate. Fail with the original exception.
-            raise exc
+            raise
         # mybytes = [0xe0 | (code >> 12),
         #            0x80 | ((code >> 6) & 0x3f),
         #            0x80 | (code & 0x3f)]
@@ -256,9 +258,8 @@ def encodefilename(fn):
             elif 0xDC80 <= code <= 0xDCFF:
                 ch = bytes_chr(code - 0xDC00)
             else:
-                raise UnicodeEncodeError(FS_ENCODING,
-                    fn, index, index+1,
-                    'ordinal not in range(128)')
+                raise UnicodeEncodeError(FS_ENCODING, fn, index, index + 1,
+                                         'ordinal not in range(128)')
             encoded.append(ch)
         return bytes().join(encoded)
     elif FS_ENCODING == 'utf-8':
@@ -272,9 +273,8 @@ def encodefilename(fn):
                     ch = bytes_chr(code - 0xDC00)
                     encoded.append(ch)
                 else:
-                    raise UnicodeEncodeError(
-                        FS_ENCODING,
-                        fn, index, index+1, 'surrogates not allowed')
+                    raise UnicodeEncodeError(FS_ENCODING, fn, index, index + 1,
+                                             'surrogates not allowed')
             else:
                 ch_utf8 = ch.encode('utf-8')
                 encoded.append(ch_utf8)
@@ -282,10 +282,13 @@ def encodefilename(fn):
     else:
         return fn.encode(FS_ENCODING, FS_ERRORS)
 
+
 def decodefilename(fn):
     return fn.decode(FS_ENCODING, FS_ERRORS)
 
-FS_ENCODING = 'ascii'; fn = b('[abc\xff]'); encoded = u('[abc\udcff]')
+FS_ENCODING = 'ascii'
+fn = b('[abc\xff]')
+encoded = u('[abc\udcff]')
 # FS_ENCODING = 'cp932'; fn = b('[abc\x81\x00]'); encoded = u('[abc\udc81\x00]')
 # FS_ENCODING = 'UTF-8'; fn = b('[abc\xff]'); encoded = u('[abc\udcff]')
 

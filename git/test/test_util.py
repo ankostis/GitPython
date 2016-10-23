@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # test_utils.py
 # Copyright (C) 2008, 2009 Michael Trier (mtrier@gmail.com) and contributors
 #
@@ -151,6 +152,14 @@ class TestUtils(TestBase):
         # auto-release on destruction
         del(other_lock_file)
         lock_file._obtain_lock_or_raise()
+        lock_file._release_lock()
+
+    def test_lock_file_unicode(self):
+        my_file = tempfile.mktemp(prefix=u'καλημερα_')
+        lock_file = LockFile(my_file)
+        assert not lock_file._has_lock()
+        lock_file._obtain_lock_or_raise()
+        assert lock_file._has_lock()
         lock_file._release_lock()
 
     def test_blocking_lock_file(self):

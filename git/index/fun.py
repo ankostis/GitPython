@@ -17,8 +17,6 @@ from git.cmd import PROC_CREATIONFLAGS, handle_process_output
 from git.compat import (
     PY3,
     defenc,
-    force_text,
-    force_bytes,
     is_posix,
     safe_encode,
     safe_decode,
@@ -91,8 +89,8 @@ def run_commit_hook(name, index):
         stdout = ''.join(stdout)
         stderr = ''.join(stderr)
         if cmd.returncode != 0:
-            stdout = force_text(stdout, defenc)
-            stderr = force_text(stderr, defenc)
+            stdout = safe_decode(stdout)
+            stderr = safe_decode(stderr)
             raise HookExecutionError(hp, cmd.returncode, stdout, stderr)
     # end handle return code
 
@@ -136,7 +134,7 @@ def write_cache(entries, stream, extension_data=None, ShaStreamCls=IndexFileSHA1
         write(entry[4])         # ctime
         write(entry[5])         # mtime
         path = entry[3]
-        path = force_bytes(path, encoding=defenc)
+        path = safe_encode(path)
         plen = len(path) & CE_NAMEMASK      # path length
         assert plen == len(path), "Path %s too long to fit into index" % entry[3]
         flags = plen | (entry[2] & CE_NAMEMASK_INV)     # clear possible previous values

@@ -9,7 +9,11 @@ import logging
 import re
 
 from git.cmd import handle_process_output, Git
-from git.compat import (defenc, force_text, is_win)
+from git.compat import (
+    defenc,
+    is_win,
+    safe_decode,
+)
 from git.exc import GitCommandError
 from git.util import (
     LazyMixin,
@@ -640,7 +644,7 @@ class Remote(LazyMixin, Iterable):
             log.warning("Error lines received while fetching: %s", stderr_text)
 
         for line in progress.other_lines:
-            line = force_text(line)
+            line = safe_decode(line)
             for cmd in cmds:
                 if len(line) > 1 and line[0] == ' ' and line[1] == cmd:
                     fetch_info_lines.append(line)
