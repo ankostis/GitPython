@@ -5,6 +5,7 @@
 # the BSD License: http://www.opensource.org/licenses/bsd-license.php
 
 from contextlib import contextmanager
+import gc
 import io
 import logging
 import os
@@ -18,7 +19,9 @@ import subprocess
 import sys
 import threading
 
-from git.compat import (
+from gitdb.util import mman
+
+from .compat import (
     string_types,
     defenc,
     force_bytes,
@@ -29,16 +32,16 @@ from git.compat import (
     is_posix,
     is_win,
 )
-from git.exc import CommandError
-from git.odict import OrderedDict
-from git.util import is_cygwin_git, cygpath
-
 from .exc import (
     GitCommandError,
     GitCommandNotFound
 )
+from .exc import CommandError
+from .odict import OrderedDict
 from .util import (
+    is_cygwin_git,
     LazyMixin,
+    cygpath,
     stream_copy,
 )
 
@@ -960,4 +963,9 @@ class Git(LazyMixin):
 
         self.cat_file_all = None
         self.cat_file_header = None
+
+        gc.collect()
+        mman.collect()
+        gc.collect()
+
         return self

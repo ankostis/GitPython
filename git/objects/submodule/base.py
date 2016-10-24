@@ -1,4 +1,5 @@
 # need a dict to set bloody .name field
+import gc
 from io import BytesIO
 import logging
 import os
@@ -26,6 +27,7 @@ from git.exc import (
 from git.objects.base import IndexObject, Object
 from git.objects.util import Traversable
 from git.util import (
+    HIDE_WINDOWS_KNOWN_ERRORS,
     Iterable,
     join_path_native,
     to_native_path_linux,
@@ -33,8 +35,7 @@ from git.util import (
     rmtree,
     unbare_repo
 )
-from git.util import HIDE_WINDOWS_KNOWN_ERRORS
-
+from gitdb.util import mman
 import os.path as osp
 
 from .util import (
@@ -208,6 +209,11 @@ class Submodule(IndexObject, Iterable, Traversable):
                 delattr(self, name)
             except AttributeError:
                 pass
+
+            gc.collect()
+            mman.collect()
+            gc.collect()
+
             # END try attr deletion
         # END for each name to delete
 
