@@ -102,7 +102,7 @@ setup(
     license="BSD License",
     requires=['gitdb2 (>=2.0.0)'],
     install_requires=install_requires,
-    test_requirements=test_requires + install_requires,
+    tests_require=test_requires + install_requires,
     zip_safe=False,
     long_description="""GitPython is a python library used to interact with Git repositories""",
     classifiers=[

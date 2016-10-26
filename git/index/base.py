@@ -134,12 +134,11 @@ class IndexFile(LazyMixin, diff.Diffable, Serializable):
             # In this case, we will just read the memory in directly.
             # Its insanely bad ... I am disappointed !
             allow_mmap = (is_win or sys.version_info[1] > 5)
-            stream = file_contents_ro(fd, stream=True, allow_mmap=allow_mmap)
-
-            try:
-                self._deserialize(stream)
-            finally:
-                lfd.rollback()
+            with file_contents_ro(fd, stream=True, allow_mmap=allow_mmap) as stream:
+                try:
+                    self._deserialize(stream)
+                finally:
+                    lfd.rollback()
                 # The handles will be closed on destruction
             # END read from default index on demand
         else:
