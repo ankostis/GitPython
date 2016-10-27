@@ -19,8 +19,10 @@ class Tutorials(TestBase):
         gc.collect()
 
     # @skipIf(HIDE_WINDOWS_KNOWN_ERRORS,  ## ACTUALLY skipped by `git.submodule.base#L869`.
-    #         "FIXME: helper.wrapper fails with: PermissionError: [WinError 5] Access is denied: "
-    #         "'C:\\Users\\appveyor\\AppData\\Local\\Temp\\1\\test_work_tree_unsupportedryfa60di\\master_repo\\.git\\objects\\pack\\pack-bc9e0787aef9f69e1591ef38ea0a6f566ec66fe3.idx")  # noqa E501
+    # FIXME: helper.wrapper fails with:
+    #       File "C:\projects\gitpython\git\util.py", line 99, in onerror
+    #     func(path)  # Will scream if still not possible to delete.PermissionError: [WinError 5] Access is denied: "
+    #     "'C:\\Users\\appveyor\\AppData\\Local\\Temp\\1\\test_work_tree_unsupportedryfa60di\\master_repo\\.git\\objects\\pack\\pack-bc9e0787aef9f69e1591ef38ea0a6f566ec66fe3.idx")  # noqa E501
     @with_rw_directory
     def test_init_repo_object(self, rw_dir):
         # [1-test_init_repo_object]

@@ -664,8 +664,15 @@ class TestSubmodule(TestBase):
             """FIXME: ile "C:\projects\gitpython\git\cmd.py", line 671, in execute
                 raise GitCommandError(command, status, stderr_value, stdout_value)
             GitCommandError: Cmd('git') failed due to: exit code(128)
-              cmdline: git add 1__Xava verbXXten 1_test _myfile 1_test_other_file 1_XXava-----verbXXten
-              stderr: 'fatal: pathspec '"1__çava verböten"' did not match any files'
+              cmdline: git commit -m new file added
+              stderr: '
+            *** Please tell me who you are.
+            Run
+              git config --global user.email "you@example.com"
+              git config --global user.name "Your Name"
+            to set your account's default identity.
+            Omit --global to set the identity only in this repository.
+            fatal: unable to auto-detect email address (got 'appveyor@APPVYR-WIN.(none)')'
                 """)
     @with_rw_directory
     def test_git_submodules_and_add_sm_with_new_commit(self, rwdir):
@@ -725,8 +732,22 @@ class TestSubmodule(TestBase):
         assert sm_too.binsha != sm.binsha
 
     # @skipIf(HIDE_WINDOWS_KNOWN_ERRORS,  ## ACTUALLY skipped by `git.submodule.base#L869`.
-    #         "FIXME: helper.wrapper fails with: PermissionError: [WinError 5] Access is denied: "
-    #         "'C:\\Users\\appveyor\\AppData\\Local\\Temp\\1\\test_work_tree_unsupportedryfa60di\\master_repo\\.git\\objects\\pack\\pack-bc9e0787aef9f69e1591ef38ea0a6f566ec66fe3.idx")  # noqa E501
+    # FIXME: helper.wrapper fails with:
+    #     File "C:\projects\gitpython\git\test\test_submodule.py", line 784, in test_git_submodule_compatibility
+    #     rsm = parent.submodule_update()
+    #     ...PY2
+    #            File "C:\projects\gitpython\git\util.py", line 99, in onerror
+    #             func(path)  # Will scream if still not possible to delete.
+    #         WindowsError: [Error 5] Access is denied:
+    #         u'c:\\users\\appveyor\\appdata\\local\\temp\\1\\test_git_submodule_compatibilitymjhy3r\\parent\\
+    #             .git\\modules\\mymodules\\myname\\modules\\nested-submodule\\mine\\objects\\pack\\
+    #             pack-908988cf6b97e7eebb246e2d0429eb42c3888af4.idx'
+    #     ...PY3
+    #           File "C:\projects\gitpython\git\util.py", line 99, in onerror
+    #             func(path)  # Will scream if still not possible to delete.
+    #         PermissionError: [WinError 5] Access is denied: 'C:\\Users\\appveyor\\AppData\\Local\\Temp
+    #             \\1\\test_git_submodule_compatibility293ite1l\\parent\\.git\\modules\\mymodules\\myname\\modules\\
+    #             nested-submodule\\mine\\objects\\pack\\pack-908988cf6b97e7eebb246e2d0429eb42c3888af4.idx'
     @with_rw_directory
     def test_git_submodule_compatibility(self, rwdir):
         parent = git.Repo.init(osp.join(rwdir, 'parent'))
