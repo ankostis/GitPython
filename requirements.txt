@@ -1,2 +1,6 @@
-gitdb>=0.6.4
-ddt>=1.1.1
+#gitdb2
+contextlib2; python_version <= '2.7'
+
+## Dev dependencies - FIXME: remember to remove them before release.
+-e git+https://github.com/ankostis/smmap.git@leaks_memview#egg=smmap2
+-e git+https://github.com/ankostis/gitdb.git@leaks_memview#egg=gitdb2

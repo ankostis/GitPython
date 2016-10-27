@@ -5,7 +5,6 @@ try:
 except ImportError:
     from ez_setup import use_setuptools
     use_setuptools()
-    from setuptools import setup, find_packages
 
 from distutils.command.build_py import build_py as _build_py
 from setuptools.command.sdist import sdist as _sdist
@@ -93,16 +92,15 @@ setup(
     version=VERSION,
     description="Python Git Library",
     author="Sebastian Thiel, Michael Trier",
-    author_email="byronimo@gmail.com, mtrier@gmail.com",
+    author_email="byronim0@gmail.com, mtrier@gmail.com",
     url="https://github.com/gitpython-developers/GitPython",
     packages=find_packages('.'),
     py_modules=['git.' + f[:-3] for f in os.listdir('./git') if f.endswith('.py')],
     package_data={'git.test': ['fixtures/*']},
     package_dir={'git': 'git'},
     license="BSD License",
-    requires=['gitdb2 (>=2.0.0)'],
     install_requires=install_requires,
-    test_requirements=test_requires + install_requires,
+    tests_require=test_requires + install_requires,
     zip_safe=False,
     long_description="""GitPython is a python library used to interact with Git repositories""",
     classifiers=[
