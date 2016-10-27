@@ -13,8 +13,14 @@ install:
   - python --version; git --version
   - git submodule update --init --recursive
   - git fetch --tags
-  - pip install -r test-requirements.txt
+
+  - pip install setuptools -U
   - pip install codecov sphinx
+
+  - pip install -I git+https://github.com/ankostis/smmap.git@leaks_memview
+  - pip install -I git+https://github.com/ankostis/gitdb.git@leaks_memview
+  - pip install -r test-requirements.txt
+  - pip install -e .
 
   # generate some reflog as git-python tests need it (in master)
   - ./init-tests-after-clone.sh

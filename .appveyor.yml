@@ -51,7 +51,6 @@ install:
         conda info -a &
         conda install --yes --quiet  pip
       )
-    - pip install -r test-requirements.txt
     - pip install codecov
 
     ## Copied from `init-tests-after-clone.sh`.
@@ -71,6 +70,9 @@ install:
         git config --global user.email "travis@ci.com"
         git config --global user.name "Travis Runner"
 
+    - pip install -I git+https://github.com/ankostis/smmap.git@leaks_memview
+    - pip install -I git+https://github.com/ankostis/gitdb.git@leaks_memview
+    - pip install -r test-requirements.txt
     - pip install -e .
 
 build: false
