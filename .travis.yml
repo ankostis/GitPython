@@ -10,13 +10,15 @@ git:
   # as we clone our own repository in the process
   depth: 99999
 install:
-  - python --version; git --version
+  - python --version; git --version; pip --version
   - git submodule update --init --recursive
   - git fetch --tags
-  - pip install -r test-requirements.txt
+
+  ## Upgrade tools for environment markers to work.
+  - python -m pip install pip setuptools -U
   - pip install codecov sphinx
-  - pip install -I git+https://github.com/ankostis/smmap.git@v2.1.0.dev1
-  - pip install -I git+https://github.com/ankostis/gitdb.git@v2.1.0.dev1
+  - pip install -r requirements.txt
+  - pip install -r test-requirements.txt
 
   # generate some reflog as git-python tests need it (in master)
   - ./init-tests-after-clone.sh

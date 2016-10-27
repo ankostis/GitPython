@@ -1,1 +1,6 @@
-gitdb>=0.6.4
+# gitdb2>=2.1.0
+# smmap>=2.1.0
+
+## DEV-requirement: FIX memleak (FIXME: remove on release)
+-e git+https://github.com/ankostis/smmap.git@v2.1.0.dev4#egg=smmap2
+-e git+https://github.com/ankostis/gitdb.git@v2.1.0.dev3#egg=gitdb2

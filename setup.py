@@ -65,27 +65,10 @@ def _stamp_version(filename):
         print("WARNING: Couldn't find version line in file %s" % filename, file=sys.stderr)
 
 install_requires = ['gitdb2 >= 2.0.0']
-extras_require = {
-    ':python_version == "2.6"': ['ordereddict'],
-}
-test_requires = ['ddt>=1.1.1']
+test_requires = ['ddt >= 1.1.1']
 if sys.version_info[:2] < (2, 7):
     test_requires.append('mock')
 
-try:
-    if 'bdist_wheel' not in sys.argv:
-        for key, value in extras_require.items():
-            if key.startswith(':') and pkg_resources.evaluate_marker(key[1:]):
-                install_requires.extend(value)
-except Exception:
-    logging.getLogger(__name__).exception(
-        'Something went wrong calculating platform specific dependencies, so '
-        "you're getting them all!"
-    )
-    for key, value in extras_require.items():
-        if key.startswith(':'):
-            install_requires.extend(value)
-# end
 
 setup(
     name="GitPython",
@@ -100,8 +83,8 @@ setup(
     package_data={'git.test': ['fixtures/*']},
     package_dir={'git': 'git'},
     license="BSD License",
-    requires=['gitdb2 (>=2.0.0)'],
     install_requires=install_requires,
+    extras_require={':python_version=="2.7"': ['ordereddict ']},
     tests_require=test_requires + install_requires,
     zip_safe=False,
     long_description="""GitPython is a python library used to interact with Git repositories""",
