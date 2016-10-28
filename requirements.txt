@@ -2,5 +2,5 @@
 contextlib2; python_version <= '2.7'
 
 ## Dev dependencies - FIXME: remember to remove them before release.
--e git+https://github.com/ankostis/smmap.git@leaks_memview#egg=smmap2
--e git+https://github.com/ankostis/gitdb.git@leaks_memview#egg=gitdb2
+-e git+https://github.com/ankostis/smmap.git@v2.1.1.dev1#egg=smmap2
+-e git+https://github.com/ankostis/gitdb.git@v2.1.1.dev1#egg=gitdb2
