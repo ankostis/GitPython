@@ -164,8 +164,8 @@ class TestRefs(TestBase):
     def test_refs(self):
         types_found = set()
         for ref in self.rorepo.refs:
-            types_found.add(type(ref))
-        assert len(types_found) >= 3
+            types_found.add((type(ref), ref))
+        assert len(types_found) >= 3, (types_found, self.rorepo)
 
     def test_is_valid(self):
         assert not Reference(self.rorepo, 'refs/doesnt/exist').is_valid()
