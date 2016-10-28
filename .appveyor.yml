@@ -68,11 +68,13 @@ install:
         git config --global user.name "Travis Runner"
 
     - pip install -r test-requirements.txt
-    - pip install -e .
 
 build: false
 
 test_script:
+    ## test build &installation
+    - python setup.py build
+    - pip install -e .
     -   IF "%IS_CYGWIN%" == "yes" (
             nosetests -v
         ) ELSE (
