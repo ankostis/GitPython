@@ -40,8 +40,6 @@ import gitdb
 log = logging.getLogger(__name__)
 
 DefaultDBType = GitCmdObjectDB
-if sys.version_info[:2] < (2, 5):     # python 2.4 compatiblity
-    DefaultDBType = GitCmdObjectDB
 # END handle python 2.4
 
 BlameEntry = namedtuple('BlameEntry', ['commit', 'linenos', 'orig_path', 'orig_linenos'])
