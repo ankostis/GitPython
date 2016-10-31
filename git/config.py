@@ -14,12 +14,13 @@ import os
 import re
 
 from git.compat import (
+    PY3,
     string_types,
     FileType,
     defenc,
     force_text,
     with_metaclass,
-    PY3
+    finalize,
 )
 from git.odict import OrderedDict
 from git.util import LockFile
@@ -105,19 +106,14 @@ class SectionConstraint(object):
 
     :note:
         If used as a context manager, will release the wrapped ConfigParser."""
-    __slots__ = ("_config", "_section_name")
+    __slots__ = ("_config", "_section_name", "_finalize", "__weakref__")
     _valid_attrs_ = ("get_value", "set_value", "get", "set", "getint", "getfloat", "getboolean", "has_option",
                      "remove_section", "remove_option", "options")
 
     def __init__(self, config, section):
+        self._finalize = finalize(self, self.release)
         self._config = config
         self._section_name = section
-
-    def __del__(self):
-        # Yes, for some reason, we have to call it explicitly for it to work in PY3 !
-        # Apparently __del__ doesn't get call anymore if refcount becomes 0
-        # Ridiculous ... .
-        self._config.release()
 
     def __getattr__(self, attr):
         if attr in self._valid_attrs_:
@@ -182,7 +178,8 @@ class GitConfigParser(with_metaclass(MetaParserBuilder, cp.RawConfigParser, obje
     del optvalueonly_source
 
     # list of RawConfigParser methods able to change the instance
-    _mutating_methods_ = ("add_section", "remove_section", "remove_option", "set")
+    _mutating_methods_ = ("add_section", "remove_section", "remove_option", "set",
+                          "_finalize", "__weakref__")
 
     def __init__(self, file_or_files, read_only=True, merge_includes=True):
         """Initialize a configuration reader to read the given file_or_files and to
@@ -200,6 +197,7 @@ class GitConfigParser(with_metaclass(MetaParserBuilder, cp.RawConfigParser, obje
             contents into ours. This makes it impossible to write back an individual configuration file.
             Thus, if you want to modify a single configuration file, turn this off to leave the original
             dataset unaltered when reading it."""
+        self._finalize = finalize(self, self.release)
         cp.RawConfigParser.__init__(self, dict_type=OrderedDict)
 
         # Used in python 3, needs to stay in sync with sections for underlying implementation to work
@@ -233,11 +231,6 @@ class GitConfigParser(with_metaclass(MetaParserBuilder, cp.RawConfigParser, obje
             self._lock._obtain_lock()
         # END read-only check
 
-    def __del__(self):
-        """Write pending changes if required and release locks"""
-        # NOTE: only consistent in PY2
-        self.release()
-
     def __enter__(self):
         self._aquire_lock()
         return self
@@ -246,9 +239,11 @@ class GitConfigParser(with_metaclass(MetaParserBuilder, cp.RawConfigParser, obje
         self.release()
 
     def release(self):
-        """Flush changes and release the configuration write lock. This instance must not be used anymore afterwards.
-        In Python 3, it's required to explicitly release locks and flush changes, as __del__ is not called
-        deterministically anymore."""
+        """Flush changes and release the configuration write lock- must not be used afterwards.
+
+        It's better to release flush changes explicitly (within an ``with ...:`` block),
+        instead of relying on finalizers.
+        """
         # checking for the lock here makes sure we do not raise during write()
         # in case an invalid parser was created who could not get a lock
         if self.read_only or (self._lock and not self._lock._has_lock()):
