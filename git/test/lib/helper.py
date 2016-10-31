@@ -35,6 +35,9 @@ __all__ = (
     'GIT_REPO', 'GIT_DAEMON_PORT'
 )
 
+## Enable full logging when running TCs.
+logging.basicConfig(level=0)
+
 log = logging.getLogger(__name__)
 
 #{ Routines
