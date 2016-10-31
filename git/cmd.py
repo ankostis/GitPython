@@ -377,14 +377,7 @@ class Git(LazyMixin):
             return out
 
         def __iter__(self):
-            return self
-
-        def next(self):
-            line = self.readline()
-            if not line:
-                raise StopIteration
-
-            return line
+            return iter(self.readline, b'')
 
         def __del__(self):
             bytes_left = self._size - self._nbr
