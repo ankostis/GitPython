@@ -8,7 +8,6 @@ from collections import namedtuple
 import logging
 import os
 import re
-import sys
 
 from git.cmd import (
     Git,
